@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asect | Streetwear Store</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        asect: {
+                            black: '#0a0a0a',
+                            darker: '#000000',
+                            red: '#8b0000',
+                            lightred: '#b22222',
+                            gray: '#1a1a1a'
+                        }
+                    },
+                    fontFamily: {
+                        heading: ['Oswald', 'sans-serif'],
+                        mono: ['Space Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #0a0a0a; color: #ffffff; overflow-x: hidden; }
+        #cartSidebar { transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        #cartSidebar.open { transform: translateX(0); }
+        #overlay { visibility: hidden; opacity: 0; transition: opacity 0.3s ease, visibility 0.3s ease; }
+        #overlay.open { visibility: visible; opacity: 1; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: #8b0000; }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Style for disabled size buttons */
+        .size-btn:disabled {
+            border-color: #333 !important;
+            color: #444 !important;
+            cursor: not-allowed;
+            background-color: transparent !important;
+            text-decoration: line-through;
+        }
+    </style>
+</head>
+<body class="font-mono antialiased selection:bg-asect-red selection:text-white">
+
+    <!-- Navbar -->
+    <nav class="fixed w-full z-40 bg-asect-darker border-b border-asect-red/50 shadow-lg shadow-asect-red/10">
+        <div class="container mx-auto px-4 lg:px-8 py-4 flex justify-between items-center">
+            <a href="#" class="block flex-shrink-0">
+                <img src="https://drive.google.com/thumbnail?id=1fTpuEMw39pqVOxMN-NFnojVDoS_Mr764&sz=w800" 
+                     alt="Asect Logo" 
+                     class="h-10 md:h-12 w-auto object-contain hover:opacity-80 transition-opacity">
+            </a>
+            <button id="cartBtn" class="flex items-center gap-2 bg-asect-red hover:bg-asect-lightred text-white px-5 py-2 text-sm font-bold uppercase tracking-wider transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="M21 15l-5-5L5 21"></path></svg>
+                Brankas [<span id="cartCount">0</span>]
+            </button>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="pt-32 pb-20 px-4 flex flex-col items-center justify-center min-h-[50vh] bg-asect-darker border-b border-asect-gray relative overflow-hidden text-center">
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-asect-red/10 blur-[120px] rounded-full pointer-events-none"></div>
+        <div class="z-10">
+            <p class="text-asect-red font-bold tracking-[0.3em] mb-4 text-sm uppercase">Archive Collection</p>
+            <h2 class="text-6xl md:text-8xl font-heading font-extrabold tracking-tighter text-white mb-6 uppercase" style="text-shadow: 4px 4px 0px #8b0000;">
+                NEW ARRIVALS
+            </h2>
+        </div>
+    </section>
+
+    <!-- Catalog -->
+    <main class="container mx-auto px-4 lg:px-8 py-20 min-h-screen">
+        <div class="flex justify-between items-end mb-10 border-b border-asect-gray pb-4">
+            <h3 class="text-3xl font-heading font-bold text-white uppercase tracking-wider">Katalog Produk</h3>
+        </div>
+
+        <div id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+            <div class="col-span-full flex flex-col items-center justify-center py-20">
+                <div class="w-10 h-10 border-4 border-asect-gray border-t-asect-red rounded-full animate-spin mb-4"></div>
+                <p class="text-gray-500 animate-pulse uppercase tracking-widest text-xs">Menghubungkan ke Database...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal Detail Produk -->
+    <div id="productModalOverlay" class="fixed inset-0 bg-black/95 backdrop-blur-md z-[60] hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div id="productModal" class="bg-asect-black border border-asect-red w-full max-w-5xl max-h-[90vh] overflow-y-auto flex flex-col md:flex-row transform scale-95 transition-transform duration-300 relative shadow-2xl">
+            <!-- Tombol Tutup -->
+            <button id="closeModalBtn" class="absolute top-4 right-4 text-gray-400 hover:text-white z-20 bg-asect-darker p-2 border border-asect-gray hover:border-asect-red transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            
+            <!-- Area Gambar -->
+            <div class="w-full md:w-1/2 bg-asect-darker border-b md:border-b-0 md:border-r border-asect-gray">
+                <div class="relative aspect-[4/5] overflow-hidden">
+                    <img id="modalMainImage" src="" alt="Product" class="w-full h-full object-cover">
+                </div>
+            </div>
+            
+            <!-- Area Info -->
+            <div class="w-full md:w-1/2 p-6 md:p-12 flex flex-col">
+                <div class="mb-6">
+                    <div id="modalCategory" class="inline-block bg-asect-red/20 text-asect-red px-3 py-1 text-[10px] font-bold uppercase tracking-widest border border-asect-red/30 mb-4">CATEGORY</div>
+                    <h2 id="modalName" class="text-3xl md:text-5xl font-heading font-extrabold text-white uppercase mb-2 leading-none">Nama Produk</h2>
+                    <p id="modalPrice" class="text-2xl font-bold text-asect-red">Rp 0</p>
+                </div>
+                
+                <div class="space-y-6 mb-10">
+                    <div>
+                        <h4 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Deskripsi</h4>
+                        <p id="modalDesc" class="text-gray-400 text-sm leading-relaxed max-h-40 overflow-y-auto no-scrollbar"></p>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-asect-darker p-3 border border-asect-gray/50">
+                            <h4 class="text-[10px] font-bold text-gray-500 uppercase mb-1">Bahan</h4>
+                            <p id="modalMaterial" class="text-white text-xs uppercase font-bold">-</p>
+                        </div>
+                        <div class="bg-asect-darker p-3 border border-asect-gray/50">
+                            <h4 class="text-[10px] font-bold text-gray-500 uppercase mb-1">Stok</h4>
+                            <p id="modalStock" class="text-white text-xs font-bold">-</p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Pilih Ukuran</h4>
+                        <div id="modalSizes" class="flex flex-wrap gap-2">
+                            <!-- Size options injected here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <button id="modalAddToCartBtn" class="mt-auto w-full bg-asect-red hover:bg-asect-lightred disabled:bg-gray-800 disabled:text-gray-500 text-white py-4 font-heading font-bold text-xl tracking-widest transition-colors uppercase">
+                    Masukkan Brankas
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Brankas Sidebar -->
+    <div id="overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[70]"></div>
+    <aside id="cartSidebar" class="fixed top-0 right-0 h-full w-full sm:w-[400px] bg-asect-darker border-l border-asect-red z-[70] flex flex-col">
+        <div class="p-6 border-b border-asect-red flex justify-between items-center bg-asect-black">
+            <h2 class="text-2xl font-heading font-bold tracking-widest text-white uppercase">Brankas</h2>
+            <button id="closeCartBtn" class="text-gray-400 hover:text-white transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+        <div id="cartItems" class="flex-1 overflow-y-auto p-6 space-y-4 bg-asect-darker">
+            <p class="text-gray-600 text-center mt-20 text-sm">Brankas masih kosong.</p>
+        </div>
+        <div class="p-6 border-t border-asect-gray bg-asect-black">
+            <div class="flex justify-between items-center mb-6">
+                <span class="text-gray-400 font-bold uppercase tracking-widest text-xs">Total</span>
+                <span id="cartTotal" class="text-2xl font-heading font-bold text-asect-red">Rp 0</span>
+            </div>
+            <button class="w-full bg-asect-red hover:bg-asect-lightred text-white py-4 font-heading font-bold text-xl tracking-widest uppercase">Checkout</button>
+        </div>
+    </aside>
+
+    <footer class="bg-asect-darker border-t border-asect-gray py-10 text-center">
+        <p class="text-gray-600 text-[10px] tracking-[0.4em] uppercase">&copy; 2026 ASECT STREETWEAR. ALL RIGHTS RESERVED.</p>
+    </footer>
+
+    <!-- Firebase -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        // Konfigurasi asli milikmu
+        const userFirebaseConfig = {
+            apiKey: "AIzaSyCf0FUA2mFDADHydsunLFkk6YQb4wo3z2k",
+            authDomain: "asect-bbe45.firebaseapp.com",
+            projectId: "asect-bbe45",
+            storageBucket: "asect-bbe45.firebasestorage.app",
+            messagingSenderId: "552312384491",
+            appId: "1:552312384491:web:8773e4aa1ce436381847ae"
+        };
+
+        // Fallback untuk menghindari crash Auth saat diuji
+        const finalConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : userFirebaseConfig;
+        const app = initializeApp(finalConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'asect-app-production';
+
+        let productsData = [];
+        let cartData = [];
+        let selectedSize = "";
+        let el = {};
+
+        const formatRupiah = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n);
+
+        // Menunggu DOM selesai dimuat sebelum mengikat event, mencegah error "Cannot set properties of null"
+        document.addEventListener('DOMContentLoaded', () => {
+            el = {
+                productGrid: document.getElementById('productGrid'),
+                cartBtn: document.getElementById('cartBtn'),
+                closeCartBtn: document.getElementById('closeCartBtn'),
+                cartSidebar: document.getElementById('cartSidebar'),
+                overlay: document.getElementById('overlay'),
+                cartItems: document.getElementById('cartItems'),
+                cartTotal: document.getElementById('cartTotal'),
+                cartCount: document.getElementById('cartCount'),
+                modalOverlay: document.getElementById('productModalOverlay'),
+                modal: document.getElementById('productModal'),
+                closeModalBtn: document.getElementById('closeModalBtn'),
+                modalMainImage: document.getElementById('modalMainImage'),
+                modalName: document.getElementById('modalName'),
+                modalPrice: document.getElementById('modalPrice'),
+                modalDesc: document.getElementById('modalDesc'),
+                modalCategory: document.getElementById('modalCategory'),
+                modalMaterial: document.getElementById('modalMaterial'),
+                modalStock: document.getElementById('modalStock'),
+                modalSizes: document.getElementById('modalSizes'),
+                modalAddToCartBtn: document.getElementById('modalAddToCartBtn')
+            };
+
+            el.cartBtn.onclick = () => toggleCart(true);
+            el.closeCartBtn.onclick = () => toggleCart(false);
+            el.overlay.onclick = () => toggleCart(false);
+            el.closeModalBtn.onclick = closeModal;
+            el.modalOverlay.onclick = (e) => { if(e.target === el.modalOverlay) closeModal(); };
+
+            document.body.onclick = (e) => {
+                const detail = e.target.closest('.detail-trigger');
+                if(detail) openModal(detail.getAttribute('data-id'));
+                const add = e.target.closest('.add-btn');
+                if(add) {
+                    const id = add.getAttribute('data-id');
+                    const p = productsData.find(x => x.id === id);
+                    const sizes = p.sizes || [];
+                    if(sizes.length > 0) openModal(id);
+                    else addToCart(id, "");
+                }
+            };
+
+            // Menjalankan inisiasi auth setelah HTML siap
+            initAuth();
+        });
+
+        // --- AUTH & KONEKSI DATABASE REALTIME ---
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) {
+                console.error("Auth Gagal:", err);
+                if (el && el.productGrid) {
+                    el.productGrid.innerHTML = `
+                        <div class="col-span-full text-center py-10 px-4">
+                            <p class="text-asect-red mb-2 font-bold">Koneksi Autentikasi Gagal</p>
+                            <p class="text-gray-500 text-xs uppercase tracking-widest mb-4">Cek API Key Firebase atau aktifkan Anonymous Auth.</p>
+                        </div>`;
+                }
+            }
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                fetchProductsRealtime();
+            }
+        });
+
+        function fetchProductsRealtime() {
+            // Path INI HARUS SAMA PERSIS dengan tempat Admin menyimpan data
+            const productsRef = collection(db, 'artifacts', appId, 'public', 'data', 'products');
+            
+            // onSnapshot membuat halaman ini update OTOMATIS saat admin nambah produk
+            onSnapshot(query(productsRef), (snapshot) => {
+                productsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderProducts();
+            }, (error) => {
+                console.error("Gagal mengambil data:", error);
+                if (el && el.productGrid) {
+                    el.productGrid.innerHTML = `
+                        <div class="col-span-full text-center py-10 px-4">
+                            <p class="text-asect-red mb-2 font-bold">Koneksi Database Terputus</p>
+                            <p class="text-gray-500 text-xs uppercase tracking-widest mb-4">Pastikan Firestore Rules mengizinkan (read: if request.auth != null)</p>
+                        </div>
+                    `;
+                }
+            });
+        }
+
+        function renderProducts() {
+            if (productsData.length === 0) {
+                el.productGrid.innerHTML = `<div class="col-span-full text-center py-20 text-gray-500 uppercase tracking-widest">Katalog Kosong</div>`;
+                return;
+            }
+
+            el.productGrid.innerHTML = productsData.map(p => {
+                const price = p.price || 0;
+                let totalStock = p.stock || 0;
+                
+                const outOfStock = totalStock <= 0;
+                const img = (p.imageUrls && p.imageUrls.length > 0) ? p.imageUrls[0] : (p.imageUrl || 'https://placehold.co/400x500/111/333?text=NO+IMAGE');
+                
+                return `
+                    <div class="group bg-asect-black border border-asect-gray hover:border-asect-red transition-all duration-300 flex flex-col h-full">
+                        <div class="relative aspect-[4/5] overflow-hidden bg-asect-darker">
+                            <div class="detail-trigger w-full h-full cursor-pointer" data-id="${p.id}">
+                                <img src="${img}" alt="${p.name}" onerror="this.src='https://placehold.co/400x500/111/333?text=NO+IMAGE'" class="w-full h-full object-cover group-hover:scale-105 transition-all duration-700 ${outOfStock ? 'grayscale opacity-50' : ''}">
+                            </div>
+                            ${outOfStock ? '<div class="absolute inset-0 flex items-center justify-center bg-black/60 font-heading text-2xl text-asect-red rotate-12 border-2 border-asect-red m-10 pointer-events-none">SOLD OUT</div>' : ''}
+                            <button data-id="${p.id}" ${outOfStock ? 'disabled' : ''} class="add-btn absolute bottom-0 left-0 w-full bg-asect-red text-white py-3 font-bold uppercase translate-y-full group-hover:translate-y-0 transition-transform disabled:bg-gray-800 z-10">
+                                ${outOfStock ? 'Habis' : '+ Brankas'}
+                            </button>
+                        </div>
+                        <div class="p-5 detail-trigger cursor-pointer flex-grow" data-id="${p.id}">
+                            <p class="text-[10px] text-asect-red font-bold uppercase tracking-widest mb-1">${p.category || 'Streetwear'}</p>
+                            <h4 class="text-lg font-heading font-bold uppercase text-white truncate">${p.name || 'Untitled'}</h4>
+                            <p class="text-asect-red font-bold">${formatRupiah(price)}</p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openModal(id) {
+            const p = productsData.find(x => x.id === id);
+            if (!p) return;
+
+            selectedSize = ""; 
+            el.modalMainImage.src = (p.imageUrls && p.imageUrls.length > 0) ? p.imageUrls[0] : (p.imageUrl || 'https://placehold.co/400x500/111/333?text=NO+IMAGE');
+            el.modalName.textContent = p.name || 'Untitled';
+            el.modalPrice.textContent = formatRupiah(p.price || 0);
+            el.modalDesc.textContent = p.description || 'Tidak ada deskripsi tersedia untuk produk ini.';
+            el.modalCategory.textContent = p.category || 'Uncategorized';
+            el.modalMaterial.textContent = p.material || 'Premium Fabric';
+            
+            let initialTotalStock = p.stock || 0;
+            el.modalStock.textContent = initialTotalStock > 0 ? `${initialTotalStock} Unit` : 'Habis';
+            
+            // Mengambil array ukuran yang disimpan oleh Admin
+            const sizes = p.sizes || [];
+            
+            if (sizes.length > 0) {
+                el.modalSizes.innerHTML = sizes.map(s => {
+                    let sStock = 0; 
+                    if (p.sizeStocks && p.sizeStocks[s] !== undefined) {
+                        sStock = p.sizeStocks[s];
+                    }
+                    const isDisabled = sStock <= 0;
+                    return `
+                        <button class="size-btn px-4 py-2 border border-asect-gray text-xs text-white uppercase font-bold hover:border-asect-red transition-all" 
+                                data-size="${s}" 
+                                data-stock="${sStock}"
+                                ${isDisabled ? 'disabled' : ''}>
+                            ${s}
+                        </button>
+                    `;
+                }).join('');
+                
+                const sizeBtns = document.querySelectorAll('.size-btn');
+                sizeBtns.forEach(b => {
+                    b.onclick = (e) => {
+                        sizeBtns.forEach(x => x.classList.remove('bg-asect-red', 'border-asect-red'));
+                        e.target.classList.add('bg-asect-red', 'border-asect-red');
+                        selectedSize = e.target.getAttribute('data-size');
+                        const sStock = e.target.getAttribute('data-stock');
+                        el.modalStock.textContent = `${sStock} Unit Tersedia`;
+                    }
+                });
+            } else {
+                el.modalSizes.innerHTML = '<span class="text-gray-600 text-xs italic">All Size / No Selection</span>';
+            }
+
+            el.modalAddToCartBtn.onclick = () => { 
+                if(sizes.length > 0 && !selectedSize) {
+                    alert("Silakan pilih ukuran terlebih dahulu.");
+                    return;
+                }
+                addToCart(p.id, selectedSize); 
+                closeModal(); 
+            };
+            
+            el.modalAddToCartBtn.disabled = initialTotalStock <= 0;
+            el.modalAddToCartBtn.textContent = initialTotalStock <= 0 ? 'SOLD OUT' : 'MASUKKAN BRANKAS';
+
+            el.modalOverlay.classList.remove('hidden');
+            setTimeout(() => { el.modalOverlay.classList.remove('opacity-0'); el.modal.classList.remove('scale-95'); }, 10);
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            el.modalOverlay.classList.add('opacity-0'); el.modal.classList.add('scale-95');
+            setTimeout(() => { el.modalOverlay.classList.add('hidden'); if(!el.cartSidebar.classList.contains('open')) document.body.style.overflow = ''; }, 300);
+        }
+
+        function addToCart(id, size) {
+            const p = productsData.find(x => x.id === id);
+            const cartKey = id + (size || '');
+            const exist = cartData.find(x => (x.id + (x.selectedSize || '')) === cartKey);
+            
+            if (exist) {
+                exist.quantity++;
+            } else {
+                cartData.push({ ...p, quantity: 1, selectedSize: size });
+            }
+            
+            updateCart(); 
+            toggleCart(true);
+        }
+
+        function updateCart() {
+            el.cartCount.textContent = cartData.reduce((s, i) => s + i.quantity, 0);
+            if (cartData.length === 0) {
+                el.cartItems.innerHTML = `<p class="text-gray-600 text-center mt-20 text-sm">Brankas Kosong.</p>`;
+                el.cartTotal.textContent = "Rp 0";
+                return;
+            }
+            let total = 0;
+            el.cartItems.innerHTML = cartData.map(i => {
+                total += (i.price || 0) * i.quantity;
+                const img = (i.imageUrls && i.imageUrls.length > 0) ? i.imageUrls[0] : i.imageUrl;
+                return `
+                    <div class="flex gap-4 bg-asect-black border border-asect-gray p-3">
+                        <img src="${img}" class="w-16 h-20 object-cover bg-asect-darker">
+                        <div class="flex-1 min-w-0">
+                            <h5 class="font-heading font-bold text-white uppercase text-sm truncate">${i.name}</h5>
+                            <div class="flex justify-between items-start">
+                                <p class="text-asect-red text-xs font-bold">${formatRupiah(i.price)}</p>
+                                ${i.selectedSize ? `<span class="text-[10px] bg-asect-gray px-1 text-gray-400 font-bold border border-asect-gray">SZ: ${i.selectedSize}</span>` : ''}
+                            </div>
+                            <div class="flex justify-between items-center mt-2">
+                                <span class="text-gray-500 text-[10px]">QTY: ${i.quantity}</span>
+                                <button onclick="window.removeItem('${i.id}', '${i.selectedSize || ''}')" class="text-gray-500 hover:text-white text-[10px] underline uppercase">Hapus</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            el.cartTotal.textContent = formatRupiah(total);
+        }
+
+        window.removeItem = (id, size) => { 
+            cartData = cartData.filter(x => !(x.id === id && (x.selectedSize || '') === size)); 
+            updateCart(); 
+        };
+
+        function toggleCart(s) {
+            if(s) { el.cartSidebar.classList.add('open'); el.overlay.classList.add('open'); document.body.style.overflow='hidden'; }
+            else { el.cartSidebar.classList.remove('open'); el.overlay.classList.remove('open'); if(el.modalOverlay.classList.contains('hidden')) document.body.style.overflow=''; }
+        }
+    </script>
+</body>
+</html>
