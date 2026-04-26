@@ -46,7 +46,6 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        /* Style for disabled size buttons */
         .size-btn:disabled {
             border-color: #333 !important;
             color: #444 !important;
@@ -54,9 +53,37 @@
             background-color: transparent !important;
             text-decoration: line-through;
         }
+
+        /* Toast notification style */
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: #8b0000;
+            color: #fff;
+            text-align: center;
+            border: 1px solid white;
+            padding: 16px;
+            position: fixed;
+            z-index: 100;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        #toast.show {
+            visibility: visible;
+            animation: fadein 0.5s, fadeout 0.5s 2.5s;
+        }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
     </style>
 </head>
 <body class="font-mono antialiased selection:bg-asect-red selection:text-white">
+
+    <!-- Toast Notification -->
+    <div id="toast">Pesanan Berhasil Dikirim!</div>
 
     <!-- Navbar -->
     <nav class="fixed w-full z-40 bg-asect-darker border-b border-asect-red/50 shadow-lg shadow-asect-red/10">
@@ -101,19 +128,16 @@
     <!-- Modal Detail Produk -->
     <div id="productModalOverlay" class="fixed inset-0 bg-black/95 backdrop-blur-md z-[60] hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
         <div id="productModal" class="bg-asect-black border border-asect-red w-full max-w-5xl max-h-[90vh] overflow-y-auto flex flex-col md:flex-row transform scale-95 transition-transform duration-300 relative shadow-2xl">
-            <!-- Tombol Tutup -->
             <button id="closeModalBtn" class="absolute top-4 right-4 text-gray-400 hover:text-white z-20 bg-asect-darker p-2 border border-asect-gray hover:border-asect-red transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
             
-            <!-- Area Gambar -->
             <div class="w-full md:w-1/2 bg-asect-darker border-b md:border-b-0 md:border-r border-asect-gray">
                 <div class="relative aspect-[4/5] overflow-hidden">
                     <img id="modalMainImage" src="" alt="Product" class="w-full h-full object-cover">
                 </div>
             </div>
             
-            <!-- Area Info -->
             <div class="w-full md:w-1/2 p-6 md:p-12 flex flex-col">
                 <div class="mb-6">
                     <div id="modalCategory" class="inline-block bg-asect-red/20 text-asect-red px-3 py-1 text-[10px] font-bold uppercase tracking-widest border border-asect-red/30 mb-4">CATEGORY</div>
@@ -140,9 +164,7 @@
 
                     <div>
                         <h4 class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Pilih Ukuran</h4>
-                        <div id="modalSizes" class="flex flex-wrap gap-2">
-                            <!-- Size options injected here -->
-                        </div>
+                        <div id="modalSizes" class="flex flex-wrap gap-2"></div>
                     </div>
                 </div>
                 
@@ -170,7 +192,7 @@
                 <span class="text-gray-400 font-bold uppercase tracking-widest text-xs">Total</span>
                 <span id="cartTotal" class="text-2xl font-heading font-bold text-asect-red">Rp 0</span>
             </div>
-            <button class="w-full bg-asect-red hover:bg-asect-lightred text-white py-4 font-heading font-bold text-xl tracking-widest uppercase">Checkout</button>
+            <button id="checkoutBtn" class="w-full bg-asect-red hover:bg-asect-lightred disabled:bg-gray-800 text-white py-4 font-heading font-bold text-xl tracking-widest uppercase transition-colors">Checkout</button>
         </div>
     </aside>
 
@@ -181,27 +203,25 @@
     <!-- Firebase -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
+        import { getFirestore, collection, onSnapshot, query, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-        // Konfigurasi asli milikmu
-        const userFirebaseConfig = {
+        const firebaseConfig = {
             apiKey: "AIzaSyCf0FUA2mFDADHydsunLFkk6YQb4wo3z2k",
             authDomain: "asect-bbe45.firebaseapp.com",
+            databaseURL: "https://asect-bbe45-default-rtdb.asia-southeast1.firebasedatabase.app",
             projectId: "asect-bbe45",
             storageBucket: "asect-bbe45.firebasestorage.app",
             messagingSenderId: "552312384491",
-            appId: "1:552312384491:web:8773e4aa1ce436381847ae"
+            appId: "1:552312384491:web:8773e4aa1ce436381847ae",
+            measurementId: "G-J58J3SQNGW"
         };
 
-        // Fallback untuk menghindari crash Auth saat diuji
-        const finalConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : userFirebaseConfig;
-        const app = initializeApp(finalConfig);
+        const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'asect-app-production';
-
         let productsData = [];
         let cartData = [];
         let selectedSize = "";
@@ -209,7 +229,6 @@
 
         const formatRupiah = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n);
 
-        // Menunggu DOM selesai dimuat sebelum mengikat event, mencegah error "Cannot set properties of null"
         document.addEventListener('DOMContentLoaded', () => {
             el = {
                 productGrid: document.getElementById('productGrid'),
@@ -220,6 +239,7 @@
                 cartItems: document.getElementById('cartItems'),
                 cartTotal: document.getElementById('cartTotal'),
                 cartCount: document.getElementById('cartCount'),
+                checkoutBtn: document.getElementById('checkoutBtn'),
                 modalOverlay: document.getElementById('productModalOverlay'),
                 modal: document.getElementById('productModal'),
                 closeModalBtn: document.getElementById('closeModalBtn'),
@@ -231,7 +251,8 @@
                 modalMaterial: document.getElementById('modalMaterial'),
                 modalStock: document.getElementById('modalStock'),
                 modalSizes: document.getElementById('modalSizes'),
-                modalAddToCartBtn: document.getElementById('modalAddToCartBtn')
+                modalAddToCartBtn: document.getElementById('modalAddToCartBtn'),
+                toast: document.getElementById('toast')
             };
 
             el.cartBtn.onclick = () => toggleCart(true);
@@ -239,6 +260,7 @@
             el.overlay.onclick = () => toggleCart(false);
             el.closeModalBtn.onclick = closeModal;
             el.modalOverlay.onclick = (e) => { if(e.target === el.modalOverlay) closeModal(); };
+            el.checkoutBtn.onclick = handleCheckout;
 
             document.body.onclick = (e) => {
                 const detail = e.target.closest('.detail-trigger');
@@ -247,61 +269,27 @@
                 if(add) {
                     const id = add.getAttribute('data-id');
                     const p = productsData.find(x => x.id === id);
-                    const sizes = p.sizes || [];
-                    if(sizes.length > 0) openModal(id);
+                    if(p && p.sizes && p.sizes.length > 0) openModal(id);
                     else addToCart(id, "");
                 }
             };
 
-            // Menjalankan inisiasi auth setelah HTML siap
             initAuth();
         });
 
-        // --- AUTH & KONEKSI DATABASE REALTIME ---
         const initAuth = async () => {
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (err) {
-                console.error("Auth Gagal:", err);
-                if (el && el.productGrid) {
-                    el.productGrid.innerHTML = `
-                        <div class="col-span-full text-center py-10 px-4">
-                            <p class="text-asect-red mb-2 font-bold">Koneksi Autentikasi Gagal</p>
-                            <p class="text-gray-500 text-xs uppercase tracking-widest mb-4">Cek API Key Firebase atau aktifkan Anonymous Auth.</p>
-                        </div>`;
-                }
-            }
+            try { await signInAnonymously(auth); } 
+            catch (err) { console.error("Auth Gagal:", err); }
         };
 
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                fetchProductsRealtime();
-            }
-        });
+        onAuthStateChanged(auth, (user) => { if (user) fetchProductsRealtime(); });
 
         function fetchProductsRealtime() {
-            // Path INI HARUS SAMA PERSIS dengan tempat Admin menyimpan data
-            const productsRef = collection(db, 'artifacts', appId, 'public', 'data', 'products');
-            
-            // onSnapshot membuat halaman ini update OTOMATIS saat admin nambah produk
+            const productsRef = collection(db, 'products');
             onSnapshot(query(productsRef), (snapshot) => {
                 productsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderProducts();
-            }, (error) => {
-                console.error("Gagal mengambil data:", error);
-                if (el && el.productGrid) {
-                    el.productGrid.innerHTML = `
-                        <div class="col-span-full text-center py-10 px-4">
-                            <p class="text-asect-red mb-2 font-bold">Koneksi Database Terputus</p>
-                            <p class="text-gray-500 text-xs uppercase tracking-widest mb-4">Pastikan Firestore Rules mengizinkan (read: if request.auth != null)</p>
-                        </div>
-                    `;
-                }
-            });
+            }, (error) => { console.error("Gagal ambil data:", error); });
         }
 
         function renderProducts() {
@@ -309,21 +297,17 @@
                 el.productGrid.innerHTML = `<div class="col-span-full text-center py-20 text-gray-500 uppercase tracking-widest">Katalog Kosong</div>`;
                 return;
             }
-
             el.productGrid.innerHTML = productsData.map(p => {
                 const price = p.price || 0;
-                let totalStock = p.stock || 0;
-                
-                const outOfStock = totalStock <= 0;
+                const outOfStock = (p.stock || 0) <= 0;
                 const img = (p.imageUrls && p.imageUrls.length > 0) ? p.imageUrls[0] : (p.imageUrl || 'https://placehold.co/400x500/111/333?text=NO+IMAGE');
-                
                 return `
                     <div class="group bg-asect-black border border-asect-gray hover:border-asect-red transition-all duration-300 flex flex-col h-full">
                         <div class="relative aspect-[4/5] overflow-hidden bg-asect-darker">
                             <div class="detail-trigger w-full h-full cursor-pointer" data-id="${p.id}">
-                                <img src="${img}" alt="${p.name}" onerror="this.src='https://placehold.co/400x500/111/333?text=NO+IMAGE'" class="w-full h-full object-cover group-hover:scale-105 transition-all duration-700 ${outOfStock ? 'grayscale opacity-50' : ''}">
+                                <img src="${img}" alt="${p.name}" class="w-full h-full object-cover group-hover:scale-105 transition-all duration-700 ${outOfStock ? 'grayscale opacity-50' : ''}">
                             </div>
-                            ${outOfStock ? '<div class="absolute inset-0 flex items-center justify-center bg-black/60 font-heading text-2xl text-asect-red rotate-12 border-2 border-asect-red m-10 pointer-events-none">SOLD OUT</div>' : ''}
+                            ${outOfStock ? '<div class="absolute inset-0 flex items-center justify-center bg-black/60 font-heading text-2xl text-asect-red rotate-12 border-2 border-asect-red m-10 pointer-events-none uppercase">Sold Out</div>' : ''}
                             <button data-id="${p.id}" ${outOfStock ? 'disabled' : ''} class="add-btn absolute bottom-0 left-0 w-full bg-asect-red text-white py-3 font-bold uppercase translate-y-full group-hover:translate-y-0 transition-transform disabled:bg-gray-800 z-10">
                                 ${outOfStock ? 'Habis' : '+ Brankas'}
                             </button>
@@ -333,72 +317,92 @@
                             <h4 class="text-lg font-heading font-bold uppercase text-white truncate">${p.name || 'Untitled'}</h4>
                             <p class="text-asect-red font-bold">${formatRupiah(price)}</p>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             }).join('');
+        }
+
+        async function handleCheckout() {
+            if (cartData.length === 0) return;
+            
+            el.checkoutBtn.disabled = true;
+            el.checkoutBtn.textContent = "Mengirim...";
+
+            try {
+                const total = cartData.reduce((s, i) => s + (i.price * i.quantity), 0);
+                
+                // Menyiapkan data pesanan
+                const orderData = {
+                    items: cartData.map(item => ({
+                        id: item.id,
+                        name: item.name,
+                        size: item.selectedSize || "N/A",
+                        quantity: item.quantity,
+                        price: item.price
+                    })),
+                    totalPrice: total,
+                    status: "pending",
+                    createdAt: serverTimestamp()
+                };
+
+                // Kirim ke koleksi 'orders' di root Firestore
+                await addDoc(collection(db, 'orders'), orderData);
+
+                // Berhasil
+                showToast("Pesanan Terkirim ke Daftar Pesanan!");
+                cartData = []; // Kosongkan keranjang
+                updateCart();
+                setTimeout(() => toggleCart(false), 2000);
+
+            } catch (error) {
+                console.error("Checkout Gagal:", error);
+                showToast("Gagal mengirim pesanan.");
+            } finally {
+                el.checkoutBtn.disabled = false;
+                el.checkoutBtn.textContent = "Checkout";
+            }
+        }
+
+        function showToast(msg) {
+            el.toast.textContent = msg;
+            el.toast.className = "show";
+            setTimeout(() => { el.toast.className = el.toast.className.replace("show", ""); }, 3000);
         }
 
         function openModal(id) {
             const p = productsData.find(x => x.id === id);
             if (!p) return;
-
             selectedSize = ""; 
             el.modalMainImage.src = (p.imageUrls && p.imageUrls.length > 0) ? p.imageUrls[0] : (p.imageUrl || 'https://placehold.co/400x500/111/333?text=NO+IMAGE');
             el.modalName.textContent = p.name || 'Untitled';
             el.modalPrice.textContent = formatRupiah(p.price || 0);
-            el.modalDesc.textContent = p.description || 'Tidak ada deskripsi tersedia untuk produk ini.';
+            el.modalDesc.textContent = p.description || 'Tidak ada deskripsi.';
             el.modalCategory.textContent = p.category || 'Uncategorized';
-            el.modalMaterial.textContent = p.material || 'Premium Fabric';
+            el.modalMaterial.textContent = p.material || '-';
+            el.modalStock.textContent = (p.stock || 0) > 0 ? `${p.stock} Unit` : 'Habis';
             
-            let initialTotalStock = p.stock || 0;
-            el.modalStock.textContent = initialTotalStock > 0 ? `${initialTotalStock} Unit` : 'Habis';
-            
-            // Mengambil array ukuran yang disimpan oleh Admin
             const sizes = p.sizes || [];
-            
             if (sizes.length > 0) {
                 el.modalSizes.innerHTML = sizes.map(s => {
-                    let sStock = 0; 
-                    if (p.sizeStocks && p.sizeStocks[s] !== undefined) {
-                        sStock = p.sizeStocks[s];
-                    }
-                    const isDisabled = sStock <= 0;
-                    return `
-                        <button class="size-btn px-4 py-2 border border-asect-gray text-xs text-white uppercase font-bold hover:border-asect-red transition-all" 
-                                data-size="${s}" 
-                                data-stock="${sStock}"
-                                ${isDisabled ? 'disabled' : ''}>
-                            ${s}
-                        </button>
-                    `;
+                    const sStock = (p.sizeStocks && p.sizeStocks[s] !== undefined) ? p.sizeStocks[s] : 0;
+                    return `<button class="size-btn px-4 py-2 border border-asect-gray text-xs text-white uppercase font-bold hover:border-asect-red transition-all" data-size="${s}" ${sStock <= 0 ? 'disabled' : ''}>${s}</button>`;
                 }).join('');
                 
-                const sizeBtns = document.querySelectorAll('.size-btn');
-                sizeBtns.forEach(b => {
+                document.querySelectorAll('.size-btn').forEach(b => {
                     b.onclick = (e) => {
-                        sizeBtns.forEach(x => x.classList.remove('bg-asect-red', 'border-asect-red'));
+                        document.querySelectorAll('.size-btn').forEach(x => x.classList.remove('bg-asect-red', 'border-asect-red'));
                         e.target.classList.add('bg-asect-red', 'border-asect-red');
                         selectedSize = e.target.getAttribute('data-size');
-                        const sStock = e.target.getAttribute('data-stock');
-                        el.modalStock.textContent = `${sStock} Unit Tersedia`;
                     }
                 });
-            } else {
-                el.modalSizes.innerHTML = '<span class="text-gray-600 text-xs italic">All Size / No Selection</span>';
-            }
+            } else { el.modalSizes.innerHTML = '<span class="text-gray-600 text-xs italic">All Size</span>'; }
 
             el.modalAddToCartBtn.onclick = () => { 
-                if(sizes.length > 0 && !selectedSize) {
-                    alert("Silakan pilih ukuran terlebih dahulu.");
-                    return;
-                }
+                if(sizes.length > 0 && !selectedSize) { showToast("Pilih Ukuran!"); return; }
                 addToCart(p.id, selectedSize); 
                 closeModal(); 
             };
-            
-            el.modalAddToCartBtn.disabled = initialTotalStock <= 0;
-            el.modalAddToCartBtn.textContent = initialTotalStock <= 0 ? 'SOLD OUT' : 'MASUKKAN BRANKAS';
-
+            el.modalAddToCartBtn.disabled = (p.stock || 0) <= 0;
+            el.modalAddToCartBtn.textContent = (p.stock || 0) <= 0 ? 'Sold Out' : 'Masukkan Brankas';
             el.modalOverlay.classList.remove('hidden');
             setTimeout(() => { el.modalOverlay.classList.remove('opacity-0'); el.modal.classList.remove('scale-95'); }, 10);
             document.body.style.overflow = 'hidden';
@@ -413,21 +417,17 @@
             const p = productsData.find(x => x.id === id);
             const cartKey = id + (size || '');
             const exist = cartData.find(x => (x.id + (x.selectedSize || '')) === cartKey);
-            
-            if (exist) {
-                exist.quantity++;
-            } else {
-                cartData.push({ ...p, quantity: 1, selectedSize: size });
-            }
-            
+            if (exist) exist.quantity++;
+            else cartData.push({ ...p, quantity: 1, selectedSize: size });
             updateCart(); 
             toggleCart(true);
         }
 
         function updateCart() {
             el.cartCount.textContent = cartData.reduce((s, i) => s + i.quantity, 0);
+            el.checkoutBtn.disabled = cartData.length === 0;
             if (cartData.length === 0) {
-                el.cartItems.innerHTML = `<p class="text-gray-600 text-center mt-20 text-sm">Brankas Kosong.</p>`;
+                el.cartItems.innerHTML = `<p class="text-gray-600 text-center mt-20 text-sm uppercase tracking-widest">Brankas Kosong.</p>`;
                 el.cartTotal.textContent = "Rp 0";
                 return;
             }
@@ -449,8 +449,7 @@
                                 <button onclick="window.removeItem('${i.id}', '${i.selectedSize || ''}')" class="text-gray-500 hover:text-white text-[10px] underline uppercase">Hapus</button>
                             </div>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             }).join('');
             el.cartTotal.textContent = formatRupiah(total);
         }
