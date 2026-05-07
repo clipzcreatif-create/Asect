@@ -104,8 +104,8 @@
     <section class="pt-32 pb-20 px-4 flex flex-col items-center justify-center min-h-[50vh] bg-asect-darker border-b border-asect-gray relative overflow-hidden text-center">
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-asect-red/10 blur-[120px] rounded-full pointer-events-none"></div>
         <div class="z-10">
-            <p class="text-asect-red font-bold tracking-[0.3em] mb-4 text-sm uppercase">Archive Collection</p>
-            <h2 class="text-6xl md:text-8xl font-heading font-extrabold tracking-tighter text-white mb-6 uppercase" style="text-shadow: 4px 4px 0px #8b0000;">
+            <p id="heroSubtitle" class="text-asect-red font-bold tracking-[0.3em] mb-4 text-sm uppercase">Archive Collection</p>
+            <h2 id="heroTitle" class="text-6xl md:text-8xl font-heading font-extrabold tracking-tighter text-white mb-6 uppercase" style="text-shadow: 4px 4px 0px #8b0000;">
                 NEW ARRIVALS
             </h2>
         </div>
@@ -188,6 +188,20 @@
             <p class="text-gray-600 text-center mt-20 text-sm">Brankas masih kosong.</p>
         </div>
         <div class="p-6 border-t border-asect-gray bg-asect-black">
+            <div class="space-y-3 mb-5">
+                <input id="customerName" class="w-full bg-asect-darker border border-asect-gray px-3 py-3 text-sm text-white outline-none focus:border-asect-red" placeholder="Nama pembeli" autocomplete="name">
+                <input id="customerWhatsapp" class="w-full bg-asect-darker border border-asect-gray px-3 py-3 text-sm text-white outline-none focus:border-asect-red" placeholder="Nomor WhatsApp" autocomplete="tel">
+                <textarea id="customerNote" class="w-full bg-asect-darker border border-asect-gray px-3 py-3 text-sm text-white outline-none focus:border-asect-red" rows="2" placeholder="Alamat / catatan order"></textarea>
+                <div class="flex gap-2">
+                    <input id="promoCodeInput" class="flex-1 bg-asect-darker border border-asect-gray px-3 py-3 text-sm text-white outline-none focus:border-asect-red uppercase" placeholder="Kode promo">
+                    <button id="applyPromoBtn" class="bg-asect-gray hover:bg-asect-red px-4 py-2 text-xs font-bold uppercase transition-colors">Pakai</button>
+                </div>
+                <p id="promoInfo" class="text-[10px] text-gray-500 uppercase tracking-widest"></p>
+            </div>
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-gray-400 font-bold uppercase tracking-widest text-xs">Subtotal</span>
+                <span id="cartSubtotal" class="text-sm font-bold text-gray-300">Rp 0</span>
+            </div>
             <div class="flex justify-between items-center mb-6">
                 <span class="text-gray-400 font-bold uppercase tracking-widest text-xs">Total</span>
                 <span id="cartTotal" class="text-2xl font-heading font-bold text-asect-red">Rp 0</span>
@@ -204,7 +218,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
-        import { getFirestore, collection, onSnapshot, query, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, query, addDoc, serverTimestamp, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
         const firebaseConfig = {
@@ -223,6 +237,8 @@
         const auth = getAuth(app);
         
         let productsData = [];
+        let promotionsData = [];
+        let activePromo = null;
         let cartData = [];
         let selectedSize = "";
         let el = {};
@@ -252,6 +268,13 @@
                 modalStock: document.getElementById('modalStock'),
                 modalSizes: document.getElementById('modalSizes'),
                 modalAddToCartBtn: document.getElementById('modalAddToCartBtn'),
+                customerName: document.getElementById('customerName'),
+                customerWhatsapp: document.getElementById('customerWhatsapp'),
+                customerNote: document.getElementById('customerNote'),
+                promoCodeInput: document.getElementById('promoCodeInput'),
+                applyPromoBtn: document.getElementById('applyPromoBtn'),
+                promoInfo: document.getElementById('promoInfo'),
+                cartSubtotal: document.getElementById('cartSubtotal'),
                 toast: document.getElementById('toast')
             };
 
@@ -261,6 +284,7 @@
             el.closeModalBtn.onclick = closeModal;
             el.modalOverlay.onclick = (e) => { if(e.target === el.modalOverlay) closeModal(); };
             el.checkoutBtn.onclick = handleCheckout;
+            el.applyPromoBtn.onclick = applyPromo;
 
             document.body.onclick = (e) => {
                 const detail = e.target.closest('.detail-trigger');
@@ -282,7 +306,7 @@
             catch (err) { console.error("Auth Gagal:", err); }
         };
 
-        onAuthStateChanged(auth, (user) => { if (user) fetchProductsRealtime(); });
+        onAuthStateChanged(auth, (user) => { if (user) { fetchProductsRealtime(); fetchPromotionsRealtime(); fetchBannerRealtime(); } });
 
         function fetchProductsRealtime() {
             const productsRef = collection(db, 'products');
@@ -290,6 +314,42 @@
                 productsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderProducts();
             }, (error) => { console.error("Gagal ambil data:", error); });
+        }
+
+        function fetchPromotionsRealtime() {
+            onSnapshot(query(collection(db, 'promotions')), (snapshot) => {
+                promotionsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                updateCart();
+            }, (error) => console.error("Gagal ambil promo:", error));
+        }
+
+        function fetchBannerRealtime() {
+            onSnapshot(doc(db, 'settings', 'banner_main'), (snap) => {
+                if (!snap.exists()) return;
+                const b = snap.data();
+                const title = document.getElementById('heroTitle');
+                const subtitle = document.getElementById('heroSubtitle');
+                if (title && b.title) title.textContent = b.title;
+                if (subtitle && b.subtitle) subtitle.textContent = b.subtitle;
+            }, (error) => console.error("Gagal ambil banner:", error));
+        }
+
+        function applyPromo() {
+            const code = (el.promoCodeInput.value || '').trim().toUpperCase();
+            activePromo = null;
+            if (!code) {
+                const direct = promotionsData.find(p => p.type === 'direct');
+                activePromo = direct || null;
+            } else {
+                activePromo = promotionsData.find(p => p.type === 'code' && String(p.code || '').toUpperCase() === code) || null;
+            }
+            el.promoInfo.textContent = activePromo ? `Promo aktif: ${activePromo.type === 'direct' ? 'DISKON LANGSUNG' : activePromo.code} -${activePromo.discount || 0}%` : 'Promo tidak ditemukan.';
+            updateCart();
+        }
+
+        function calculateDiscount(subtotal) {
+            if (!activePromo || !activePromo.discount) return 0;
+            return Math.round(subtotal * (Number(activePromo.discount) / 100));
         }
 
         function renderProducts() {
@@ -328,7 +388,13 @@
             el.checkoutBtn.textContent = "Mengirim...";
 
             try {
-                const total = cartData.reduce((s, i) => s + (i.price * i.quantity), 0);
+                const subtotal = cartData.reduce((s, i) => s + (i.price * i.quantity), 0);
+                if (!el.customerName.value.trim() || !el.customerWhatsapp.value.trim()) {
+                    showToast("Isi nama dan WhatsApp dulu.");
+                    return;
+                }
+                const discount = calculateDiscount(subtotal);
+                const total = Math.max(0, subtotal - discount);
                 
                 // Menyiapkan data pesanan
                 const orderData = {
@@ -339,6 +405,14 @@
                         quantity: item.quantity,
                         price: item.price
                     })),
+                    customer: {
+                        name: el.customerName.value.trim(),
+                        whatsapp: el.customerWhatsapp.value.trim(),
+                        note: el.customerNote.value.trim()
+                    },
+                    subtotalPrice: subtotal,
+                    discountPrice: discount,
+                    promo: activePromo ? { id: activePromo.id, code: activePromo.code || null, type: activePromo.type, discount: activePromo.discount } : null,
                     totalPrice: total,
                     status: "pending",
                     createdAt: serverTimestamp()
@@ -350,6 +424,8 @@
                 // Berhasil
                 showToast("Pesanan Terkirim ke Daftar Pesanan!");
                 cartData = []; // Kosongkan keranjang
+                activePromo = null;
+                el.promoInfo.textContent = '';
                 updateCart();
                 setTimeout(() => toggleCart(false), 2000);
 
@@ -429,11 +505,12 @@
             if (cartData.length === 0) {
                 el.cartItems.innerHTML = `<p class="text-gray-600 text-center mt-20 text-sm uppercase tracking-widest">Brankas Kosong.</p>`;
                 el.cartTotal.textContent = "Rp 0";
+                el.cartSubtotal.textContent = "Rp 0";
                 return;
             }
-            let total = 0;
+            let subtotal = 0;
             el.cartItems.innerHTML = cartData.map(i => {
-                total += (i.price || 0) * i.quantity;
+                subtotal += (i.price || 0) * i.quantity;
                 const img = (i.imageUrls && i.imageUrls.length > 0) ? i.imageUrls[0] : i.imageUrl;
                 return `
                     <div class="flex gap-4 bg-asect-black border border-asect-gray p-3">
@@ -451,7 +528,9 @@
                         </div>
                     </div>`;
             }).join('');
-            el.cartTotal.textContent = formatRupiah(total);
+            const discount = calculateDiscount(subtotal);
+            el.cartSubtotal.textContent = formatRupiah(subtotal);
+            el.cartTotal.textContent = formatRupiah(Math.max(0, subtotal - discount));
         }
 
         window.removeItem = (id, size) => { 
