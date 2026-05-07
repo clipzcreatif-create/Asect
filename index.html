@@ -93,10 +93,15 @@
                      alt="Asect Logo" 
                      class="h-10 md:h-12 w-auto object-contain hover:opacity-80 transition-opacity">
             </a>
-            <button id="cartBtn" class="flex items-center gap-2 bg-asect-red hover:bg-asect-lightred text-white px-5 py-2 text-sm font-bold uppercase tracking-wider transition-all">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="M21 15l-5-5L5 21"></path></svg>
-                Brankas [<span id="cartCount">0</span>]
-            </button>
+            <div class="flex items-center gap-2">
+                <button id="accountBtn" class="bg-asect-gray hover:bg-asect-red text-white px-4 py-2 text-xs md:text-sm font-bold uppercase tracking-wider transition-all">Login</button>
+                <button id="ordersBtn" class="hidden bg-asect-gray hover:bg-asect-red text-white px-4 py-2 text-xs md:text-sm font-bold uppercase tracking-wider transition-all">Akun Saya</button>
+                <button id="logoutBtn" class="hidden border border-asect-gray hover:border-asect-red text-gray-400 hover:text-white px-3 py-2 text-xs font-bold uppercase transition-all">Keluar</button>
+                <button id="cartBtn" class="flex items-center gap-2 bg-asect-red hover:bg-asect-lightred text-white px-4 md:px-5 py-2 text-xs md:text-sm font-bold uppercase tracking-wider transition-all">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="M21 15l-5-5L5 21"></path></svg>
+                    Brankas [<span id="cartCount">0</span>]
+                </button>
+            </div>
         </div>
     </nav>
 
@@ -216,6 +221,41 @@
         </div>
     </aside>
 
+    <!-- Account Modal -->
+    <div id="authModalOverlay" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[80] hidden flex items-center justify-center p-4">
+        <div class="bg-asect-black border border-asect-red w-full max-w-md p-6 shadow-2xl">
+            <div class="flex justify-between items-center mb-5">
+                <h2 id="authTitle" class="text-2xl font-heading font-bold uppercase">Login Customer</h2>
+                <button id="closeAuthBtn" class="text-gray-400 hover:text-white text-2xl">×</button>
+            </div>
+            <div class="space-y-3">
+                <input id="authName" class="hidden w-full bg-asect-darker border border-asect-gray px-3 py-3 text-sm text-white outline-none focus:border-asect-red" placeholder="Nama lengkap">
+                <input id="authWhatsapp" class="hidden w-full bg-asect-darker border border-asect-gray px-3 py-3 text-sm text-white outline-none focus:border-asect-red" placeholder="Nomor WhatsApp">
+                <textarea id="authAddress" class="hidden w-full bg-asect-darker border border-asect-gray px-3 py-3 text-sm text-white outline-none focus:border-asect-red" rows="2" placeholder="Alamat default"></textarea>
+                <input id="authEmail" class="w-full bg-asect-darker border border-asect-gray px-3 py-3 text-sm text-white outline-none focus:border-asect-red" placeholder="Email" type="email">
+                <input id="authPassword" class="w-full bg-asect-darker border border-asect-gray px-3 py-3 text-sm text-white outline-none focus:border-asect-red" placeholder="Password" type="password">
+                <button id="authSubmitBtn" class="w-full bg-asect-red hover:bg-asect-lightred text-white py-3 font-heading font-bold uppercase tracking-widest">Masuk</button>
+                <button id="toggleAuthModeBtn" class="w-full text-xs text-gray-400 hover:text-white underline uppercase">Belum punya akun? Daftar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer Orders Modal -->
+    <div id="ordersModalOverlay" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[80] hidden flex items-center justify-center p-4">
+        <div class="bg-asect-black border border-asect-red w-full max-w-4xl max-h-[85vh] overflow-y-auto p-6 shadow-2xl">
+            <div class="flex justify-between items-center mb-5">
+                <div>
+                    <h2 class="text-2xl font-heading font-bold uppercase">Akun Saya</h2>
+                    <p id="accountSummary" class="text-xs text-gray-500 mt-1"></p>
+                </div>
+                <button id="closeOrdersBtn" class="text-gray-400 hover:text-white text-2xl">×</button>
+            </div>
+            <div id="customerOrdersList" class="space-y-4 text-sm text-gray-300">
+                <p class="text-gray-500 uppercase tracking-widest text-xs">Login dulu untuk melihat riwayat pembelian.</p>
+            </div>
+        </div>
+    </div>
+
     <footer class="bg-asect-darker border-t border-asect-gray py-10 text-center">
         <p class="text-gray-600 text-[10px] tracking-[0.4em] uppercase">&copy; 2026 ASECT STREETWEAR. ALL RIGHTS RESERVED.</p>
     </footer>
@@ -224,8 +264,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
-        import { getFirestore, collection, onSnapshot, query, addDoc, serverTimestamp, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, query, addDoc, serverTimestamp, doc, setDoc, getDoc, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCf0FUA2mFDADHydsunLFkk6YQb4wo3z2k",
@@ -247,6 +287,10 @@
         let activePromo = null;
         let cartData = [];
         let selectedSize = "";
+        let currentUser = null;
+        let customerProfile = null;
+        let authMode = "login";
+        let ordersUnsub = null;
         let el = {};
 
         const formatRupiah = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(n);
@@ -254,6 +298,9 @@
         document.addEventListener('DOMContentLoaded', () => {
             el = {
                 productGrid: document.getElementById('productGrid'),
+                accountBtn: document.getElementById('accountBtn'),
+                ordersBtn: document.getElementById('ordersBtn'),
+                logoutBtn: document.getElementById('logoutBtn'),
                 cartBtn: document.getElementById('cartBtn'),
                 closeCartBtn: document.getElementById('closeCartBtn'),
                 cartSidebar: document.getElementById('cartSidebar'),
@@ -283,6 +330,20 @@
                 paymentGuide: document.getElementById('paymentGuide'),
                 promoInfo: document.getElementById('promoInfo'),
                 cartSubtotal: document.getElementById('cartSubtotal'),
+                authModalOverlay: document.getElementById('authModalOverlay'),
+                authTitle: document.getElementById('authTitle'),
+                authName: document.getElementById('authName'),
+                authWhatsapp: document.getElementById('authWhatsapp'),
+                authAddress: document.getElementById('authAddress'),
+                authEmail: document.getElementById('authEmail'),
+                authPassword: document.getElementById('authPassword'),
+                authSubmitBtn: document.getElementById('authSubmitBtn'),
+                toggleAuthModeBtn: document.getElementById('toggleAuthModeBtn'),
+                closeAuthBtn: document.getElementById('closeAuthBtn'),
+                ordersModalOverlay: document.getElementById('ordersModalOverlay'),
+                closeOrdersBtn: document.getElementById('closeOrdersBtn'),
+                customerOrdersList: document.getElementById('customerOrdersList'),
+                accountSummary: document.getElementById('accountSummary'),
                 toast: document.getElementById('toast')
             };
 
@@ -294,6 +355,13 @@
             el.checkoutBtn.onclick = handleCheckout;
             el.applyPromoBtn.onclick = applyPromo;
             el.paymentMethod.onchange = updatePaymentGuide;
+            el.accountBtn.onclick = () => openAuthModal('login');
+            el.ordersBtn.onclick = openOrdersModal;
+            el.logoutBtn.onclick = () => signOut(auth);
+            el.closeAuthBtn.onclick = closeAuthModal;
+            el.toggleAuthModeBtn.onclick = () => setAuthMode(authMode === 'login' ? 'register' : 'login');
+            el.authSubmitBtn.onclick = handleAuthSubmit;
+            el.closeOrdersBtn.onclick = closeOrdersModal;
             updatePaymentGuide();
 
             document.body.onclick = (e) => {
@@ -312,11 +380,135 @@
         });
 
         const initAuth = async () => {
-            try { await signInAnonymously(auth); } 
+            // Auth email/password akan dipakai untuk customer. Anonymous tetap dipakai agar katalog bisa dibaca sebelum login.
+            try { if (!auth.currentUser) await signInAnonymously(auth); }
             catch (err) { console.error("Auth Gagal:", err); }
         };
 
-        onAuthStateChanged(auth, (user) => { if (user) { fetchProductsRealtime(); fetchPromotionsRealtime(); fetchBannerRealtime(); } });
+        onAuthStateChanged(auth, async (user) => {
+            currentUser = user || null;
+            if (user) {
+                fetchProductsRealtime(); fetchPromotionsRealtime(); fetchBannerRealtime();
+                if (!user.isAnonymous) await loadCustomerProfile(user);
+                else { customerProfile = null; updateAccountUI(); }
+            } else {
+                customerProfile = null; updateAccountUI();
+                initAuth();
+            }
+        });
+
+
+        function setAuthMode(mode) {
+            authMode = mode;
+            const register = mode === 'register';
+            el.authTitle.textContent = register ? 'Daftar Customer' : 'Login Customer';
+            el.authSubmitBtn.textContent = register ? 'Daftar' : 'Masuk';
+            el.toggleAuthModeBtn.textContent = register ? 'Sudah punya akun? Login' : 'Belum punya akun? Daftar';
+            [el.authName, el.authWhatsapp, el.authAddress].forEach(x => x.classList.toggle('hidden', !register));
+        }
+
+        function openAuthModal(mode='login') { setAuthMode(mode); el.authModalOverlay.classList.remove('hidden'); }
+        function closeAuthModal() { el.authModalOverlay.classList.add('hidden'); }
+        function openOrdersModal() { el.ordersModalOverlay.classList.remove('hidden'); renderCustomerOrders(); }
+        function closeOrdersModal() { el.ordersModalOverlay.classList.add('hidden'); }
+
+        async function handleAuthSubmit() {
+            const email = el.authEmail.value.trim();
+            const password = el.authPassword.value;
+            if (!email || !password) return showToast('Isi email dan password.');
+            el.authSubmitBtn.disabled = true;
+            try {
+                if (authMode === 'register') {
+                    const cred = await createUserWithEmailAndPassword(auth, email, password);
+                    const profile = {
+                        uid: cred.user.uid,
+                        name: el.authName.value.trim(),
+                        email,
+                        whatsapp: el.authWhatsapp.value.trim(),
+                        defaultAddress: el.authAddress.value.trim(),
+                        createdAt: serverTimestamp(),
+                        updatedAt: serverTimestamp()
+                    };
+                    await setDoc(doc(db, 'customers', cred.user.uid), profile, { merge: true });
+                    customerProfile = profile;
+                    showToast('Akun customer dibuat.');
+                } else {
+                    await signInWithEmailAndPassword(auth, email, password);
+                    showToast('Login berhasil.');
+                }
+                closeAuthModal();
+            } catch (err) {
+                console.error(err);
+                showToast('Auth gagal: ' + (err.code || err.message));
+            } finally { el.authSubmitBtn.disabled = false; }
+        }
+
+        async function loadCustomerProfile(user) {
+            const snap = await getDoc(doc(db, 'customers', user.uid));
+            customerProfile = snap.exists() ? snap.data() : { uid: user.uid, email: user.email };
+            updateAccountUI();
+            prefillCheckoutFromProfile();
+            listenCustomerOrders();
+        }
+
+        function updateAccountUI() {
+            const logged = currentUser && !currentUser.isAnonymous;
+            el.accountBtn.classList.toggle('hidden', logged);
+            el.ordersBtn.classList.toggle('hidden', !logged);
+            el.logoutBtn.classList.toggle('hidden', !logged);
+            if (logged) {
+                el.ordersBtn.textContent = (customerProfile?.name || currentUser.email || 'Akun Saya').split(' ')[0];
+                el.accountSummary.textContent = `${customerProfile?.name || '-'} • ${customerProfile?.email || currentUser.email || '-'}`;
+            }
+        }
+
+        function prefillCheckoutFromProfile() {
+            if (!customerProfile) return;
+            if (!el.customerName.value) el.customerName.value = customerProfile.name || '';
+            if (!el.customerWhatsapp.value) el.customerWhatsapp.value = customerProfile.whatsapp || '';
+            if (!el.customerNote.value) el.customerNote.value = customerProfile.defaultAddress || '';
+        }
+
+        function listenCustomerOrders() {
+            if (ordersUnsub) ordersUnsub();
+            if (!currentUser || currentUser.isAnonymous) return;
+            ordersUnsub = onSnapshot(query(collection(db, 'orders'), where('customerUid', '==', currentUser.uid)), (snap) => {
+                customerOrders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderCustomerOrders();
+            });
+        }
+
+        let customerOrders = [];
+        function renderCustomerOrders() {
+            if (!currentUser || currentUser.isAnonymous) {
+                el.customerOrdersList.innerHTML = '<p class="text-gray-500 uppercase tracking-widest text-xs">Login dulu untuk melihat riwayat pembelian.</p>';
+                return;
+            }
+            if (!customerOrders.length) {
+                el.customerOrdersList.innerHTML = '<p class="text-gray-500 uppercase tracking-widest text-xs">Belum ada pembelian.</p>';
+                return;
+            }
+            el.customerOrdersList.innerHTML = customerOrders.map(o => {
+                const items = (o.items || []).map(i => `<li>${i.name} (${i.size}) x${i.quantity}</li>`).join('');
+                return `<div class="border border-asect-gray bg-asect-darker p-4">
+                    <div class="flex justify-between gap-3 flex-wrap mb-3">
+                        <b class="text-white">${o.invoiceCode || o.id}</b>
+                        <span class="text-asect-red font-bold">${formatRupiah(o.totalPrice || 0)}</span>
+                    </div>
+                    <ul class="text-xs text-gray-400 mb-3 list-disc pl-4">${items}</ul>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-gray-400">
+                        <span>Order: <b class="text-white">${o.status || '-'}</b></span>
+                        <span>Bayar: <b class="text-white">${o.payment?.methodLabel || '-'}</b></span>
+                        <span>Status Bayar: <b class="text-white">${o.payment?.status || '-'}</b></span>
+                    </div>
+                    <button onclick="window.chatAdmin('${o.invoiceCode || o.id}')" class="mt-3 bg-asect-red px-3 py-2 text-xs font-bold uppercase">Chat Admin</button>
+                </div>`;
+            }).join('');
+        }
+
+        window.chatAdmin = (invoice) => {
+            window.open(`https://wa.me/${ADMIN_WHATSAPP}?text=Halo Admin Asect,%20saya%20mau%20cek%20order%20${encodeURIComponent(invoice)}`, '_blank');
+        };
 
         function fetchProductsRealtime() {
             const productsRef = collection(db, 'products');
@@ -452,6 +644,8 @@
                         quantity: item.quantity,
                         price: item.price
                     })),
+                    customerUid: currentUser && !currentUser.isAnonymous ? currentUser.uid : null,
+                    customerEmail: currentUser && !currentUser.isAnonymous ? currentUser.email : null,
                     customer: {
                         name: el.customerName.value.trim(),
                         whatsapp: el.customerWhatsapp.value.trim(),
