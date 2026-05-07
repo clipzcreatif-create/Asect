@@ -264,7 +264,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
-        import { getFirestore, collection, onSnapshot, query, addDoc, serverTimestamp, doc, setDoc, getDoc, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, query, addDoc, serverTimestamp, doc, setDoc, getDoc, where, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
         const firebaseConfig = {
@@ -501,13 +501,37 @@
                         <span>Bayar: <b class="text-white">${o.payment?.methodLabel || '-'}</b></span>
                         <span>Status Bayar: <b class="text-white">${o.payment?.status || '-'}</b></span>
                     </div>
-                    <button onclick="window.chatAdmin('${o.invoiceCode || o.id}')" class="mt-3 bg-asect-red px-3 py-2 text-xs font-bold uppercase">Chat Admin</button>
+                    <div class="mt-3 flex gap-2 flex-wrap">
+                        <button onclick="window.chatAdmin('${o.invoiceCode || o.id}')" class="bg-asect-red px-3 py-2 text-xs font-bold uppercase">Chat Admin</button>
+                        ${['process','waiting_payment','waiting_confirmation','pending','cod_requested'].includes(o.status || '') ? `<button onclick="window.cancelCustomerOrder('${o.id}')" class="border border-asect-red text-asect-red hover:bg-asect-red hover:text-white px-3 py-2 text-xs font-bold uppercase">Cancel Order</button>` : ''}
+                    </div>
                 </div>`;
             }).join('');
         }
 
         window.chatAdmin = (invoice) => {
             window.open(`https://wa.me/${ADMIN_WHATSAPP}?text=Halo Admin Asect,%20saya%20mau%20cek%20order%20${encodeURIComponent(invoice)}`, '_blank');
+        };
+
+        window.cancelCustomerOrder = async (orderId) => {
+            if (!currentUser || currentUser.isAnonymous) return showToast('Login dulu.');
+            if (!confirm('Batalkan pesanan ini?')) return;
+            const order = customerOrders.find(o => o.id === orderId);
+            if (!order || order.customerUid !== currentUser.uid) return showToast('Order tidak valid.');
+            const allowed = ['process','waiting_payment','waiting_confirmation','pending','cod_requested'];
+            if (!allowed.includes(order.status || '')) return showToast('Order sudah tidak bisa dibatalkan.');
+            try {
+                await updateDoc(doc(db, 'orders', orderId), {
+                    status: 'cancel_requested',
+                    'payment.status': 'cancel_requested',
+                    cancelRequestedAt: serverTimestamp(),
+                    cancelRequestedBy: currentUser.uid
+                });
+                showToast('Permintaan cancel terkirim.');
+            } catch (err) {
+                console.error(err);
+                showToast('Gagal cancel order.');
+            }
         };
 
         function fetchProductsRealtime() {
