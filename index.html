@@ -192,6 +192,12 @@
                 <input id="customerName" class="w-full bg-asect-darker border border-asect-gray px-3 py-3 text-sm text-white outline-none focus:border-asect-red" placeholder="Nama pembeli" autocomplete="name">
                 <input id="customerWhatsapp" class="w-full bg-asect-darker border border-asect-gray px-3 py-3 text-sm text-white outline-none focus:border-asect-red" placeholder="Nomor WhatsApp" autocomplete="tel">
                 <textarea id="customerNote" class="w-full bg-asect-darker border border-asect-gray px-3 py-3 text-sm text-white outline-none focus:border-asect-red" rows="2" placeholder="Alamat / catatan order"></textarea>
+                <select id="paymentMethod" class="w-full bg-asect-darker border border-asect-gray px-3 py-3 text-sm text-white outline-none focus:border-asect-red">
+                    <option value="bank_transfer">Transfer Bank</option>
+                    <option value="dana">Dana / E-Wallet</option>
+                    <option value="cod_chat_admin">COD / Chat Admin</option>
+                </select>
+                <div id="paymentGuide" class="bg-asect-darker border border-asect-gray/70 p-3 text-[11px] text-gray-400 leading-relaxed"></div>
                 <div class="flex gap-2">
                     <input id="promoCodeInput" class="flex-1 bg-asect-darker border border-asect-gray px-3 py-3 text-sm text-white outline-none focus:border-asect-red uppercase" placeholder="Kode promo">
                     <button id="applyPromoBtn" class="bg-asect-gray hover:bg-asect-red px-4 py-2 text-xs font-bold uppercase transition-colors">Pakai</button>
@@ -273,6 +279,8 @@
                 customerNote: document.getElementById('customerNote'),
                 promoCodeInput: document.getElementById('promoCodeInput'),
                 applyPromoBtn: document.getElementById('applyPromoBtn'),
+                paymentMethod: document.getElementById('paymentMethod'),
+                paymentGuide: document.getElementById('paymentGuide'),
                 promoInfo: document.getElementById('promoInfo'),
                 cartSubtotal: document.getElementById('cartSubtotal'),
                 toast: document.getElementById('toast')
@@ -285,6 +293,8 @@
             el.modalOverlay.onclick = (e) => { if(e.target === el.modalOverlay) closeModal(); };
             el.checkoutBtn.onclick = handleCheckout;
             el.applyPromoBtn.onclick = applyPromo;
+            el.paymentMethod.onchange = updatePaymentGuide;
+            updatePaymentGuide();
 
             document.body.onclick = (e) => {
                 const detail = e.target.closest('.detail-trigger');
@@ -352,6 +362,41 @@
             return Math.round(subtotal * (Number(activePromo.discount) / 100));
         }
 
+
+        const ADMIN_WHATSAPP = "6282234590333";
+        const DANA_NUMBER = "6285101531575";
+        const BANK_PLACEHOLDER = "BCA / Mandiri / BRI - isi rekening admin di AsectAdmin";
+
+        function getInvoiceCode() {
+            const now = new Date();
+            const ymd = now.toISOString().slice(0,10).replaceAll('-', '');
+            const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+            return `ASC-${ymd}-${rand}`;
+        }
+
+        function getPaymentLabel(method) {
+            return {
+                bank_transfer: 'Transfer Bank',
+                dana: 'Dana / E-Wallet',
+                cod_chat_admin: 'COD / Chat Admin'
+            }[method] || 'Transfer Bank';
+        }
+
+        function updatePaymentGuide() {
+            const method = el.paymentMethod.value;
+            const guides = {
+                bank_transfer: `Transfer bank manual. ${BANK_PLACEHOLDER}. Admin akan verifikasi setelah bukti dikirim via WhatsApp.`,
+                dana: `Bayar via Dana ke nomor ${DANA_NUMBER}. Simpan bukti pembayaran lalu kirim ke admin.`,
+                cod_chat_admin: `COD / chat admin. Setelah checkout, resi/order bisa dikirim ke WhatsApp admin +62 822-3459-0333.`
+            };
+            el.paymentGuide.textContent = guides[method] || guides.bank_transfer;
+        }
+
+        function buildAdminWaMessage(order) {
+            const items = order.items.map(i => `- ${i.name} (${i.size}) x${i.quantity} = ${formatRupiah(i.price * i.quantity)}`).join('%0A');
+            return `Halo Admin Asect,%0A%0AAda order baru:%0AInvoice: ${order.invoiceCode}%0ANama: ${encodeURIComponent(order.customer.name)}%0AWA: ${encodeURIComponent(order.customer.whatsapp)}%0AMetode bayar: ${encodeURIComponent(order.payment.methodLabel)}%0ATotal: ${encodeURIComponent(formatRupiah(order.totalPrice))}%0A%0AItem:%0A${items}%0A%0ACatatan/Alamat:%0A${encodeURIComponent(order.customer.note || '-')}`;
+        }
+
         function renderProducts() {
             if (productsData.length === 0) {
                 el.productGrid.innerHTML = `<div class="col-span-full text-center py-20 text-gray-500 uppercase tracking-widest">Katalog Kosong</div>`;
@@ -395,6 +440,8 @@
                 }
                 const discount = calculateDiscount(subtotal);
                 const total = Math.max(0, subtotal - discount);
+                const invoiceCode = getInvoiceCode();
+                const method = el.paymentMethod.value;
                 
                 // Menyiapkan data pesanan
                 const orderData = {
@@ -414,7 +461,16 @@
                     discountPrice: discount,
                     promo: activePromo ? { id: activePromo.id, code: activePromo.code || null, type: activePromo.type, discount: activePromo.discount } : null,
                     totalPrice: total,
-                    status: "pending",
+                    invoiceCode,
+                    payment: {
+                        method,
+                        methodLabel: getPaymentLabel(method),
+                        status: method === 'cod_chat_admin' ? 'cod_requested' : 'waiting_payment',
+                        danaNumber: method === 'dana' ? DANA_NUMBER : null,
+                        adminWhatsapp: ADMIN_WHATSAPP,
+                        note: method === 'bank_transfer' ? BANK_PLACEHOLDER : null
+                    },
+                    status: method === 'cod_chat_admin' ? "cod_requested" : "waiting_payment",
                     createdAt: serverTimestamp()
                 };
 
@@ -422,7 +478,10 @@
                 await addDoc(collection(db, 'orders'), orderData);
 
                 // Berhasil
-                showToast("Pesanan Terkirim ke Daftar Pesanan!");
+                showToast(`Order ${invoiceCode} terkirim!`);
+                if (method === 'cod_chat_admin') {
+                    window.open(`https://wa.me/${ADMIN_WHATSAPP}?text=${buildAdminWaMessage(orderData)}`, '_blank');
+                }
                 cartData = []; // Kosongkan keranjang
                 activePromo = null;
                 el.promoInfo.textContent = '';
